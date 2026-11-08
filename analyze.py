@@ -172,7 +172,7 @@ def plot_maps(path, out_dir, dataset, param, values, title):
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument('--out', default='results')
+    p.add_argument('--out', default='results_experiment_sweeps')
     args = p.parse_args()
 
     rows = load_rows(os.path.join(args.out, 'results.csv'))
