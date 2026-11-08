@@ -87,7 +87,7 @@ for i in xrange(1, timeline):
 	ut = np.concatenate([np.concatenate([delta_x_gb_new, delta_y_gb_new], axis=0), delta_theta_gb_new], axis=0)
 	ut = np.einsum('ji', ut)
 
-	noise = np.einsum('..., ...', factor, np.random.normal(0, 1e-3, (N, 1)))
+	noise = np.einsum('..., ...', factor, np.random.normal(0, 1e-4, (N, 3)))
 	particles = particles + ut + noise
 
 	scan_c = lid_c['scan']
