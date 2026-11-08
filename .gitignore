@@ -1,7 +1,4 @@
 script.sh
 .idea/
 results_experiment_sweeps/
-results_experiment_sweeps_test/
-/logs
-/new_results
-
+results_experiment_sweeps_quick/
