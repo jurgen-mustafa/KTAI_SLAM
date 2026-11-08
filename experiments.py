@@ -405,8 +405,8 @@ def main():
 
     exps = ['baseline', 'particles', 'noise', 'range'] if 'all' in args.experiments \
         else args.experiments
-    if args.max_scans is not None and args.out == 'results':
-        args.out = 'results_quick'          # keep test runs apart from real ones
+    if args.max_scans is not None and args.out == 'results_experiment_sweeps':
+        args.out = 'results_experiment_sweeps_quick'          # keep test runs apart from real ones
     mkdir_p(args.out)
     csv_path = os.path.join(args.out, 'results.csv')
     done = read_done(csv_path)
