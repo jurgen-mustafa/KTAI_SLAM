@@ -1,9 +1,7 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 analyze.py -- turn <out>/results.csv from experiments.py into tables and figures.
 
-  python analyze.py                  # uses results/
+  python analyze.py                  # uses Result_Experiment_sweeps/
   python analyze.py --out results_quick
 
 Writes to <out>/analysis/:
@@ -172,7 +170,7 @@ def plot_maps(path, out_dir, dataset, param, values, title):
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument('--out', default='results_experiment_sweeps')
+    p.add_argument('--out', default='result_experiment_sweeps')
     args = p.parse_args()
 
     rows = load_rows(os.path.join(args.out, 'results.csv'))
