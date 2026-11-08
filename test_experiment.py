@@ -58,3 +58,32 @@ def synthetic_data(n_scans=700, seed=1):
         oth.append(oth[-1] + dth)
         ox.append(ox[-1] + d * np.cos(oth[-1]))
         oy.append(oy[-1] + d * np.sin(oth[-1]))
+
+    lid = []
+    for k in range(n_scans):
+        scan = raycast(xs[k], ys[k], th[k], angles) + rng.normal(0, 0.01, angles.size)
+        lid.append({'t': np.array([[0.025 * k]]),
+                    'pose': np.array([[ox[k], oy[k], oth[k]]]),
+                    'rpy': np.array([[0.0, 0.0, oth[k]]]),
+                    'scan': np.array([np.maximum(scan, 0.0)])})
+    joint = {'ts': np.array([0.025 * np.arange(n_scans)]),
+             'rpy': np.zeros((3, n_scans)),
+             'head_angles': np.zeros((2, n_scans))}
+    return lid, joint
+
+
+if __name__ == '__main__':
+    data = synthetic_data()
+    experiments.load_dataset = lambda dataset, data_dir='data': data
+    # reduced sweeps so the test stays quick
+    experiments.SWEEPS[:] = [('particles', 'N', [1, 10, 30]),
+                             ('noise', 'sigma', [0.0, 1e-3, 5e-2]),
+                             ('range', 'max_range', [30.0, 4.0, 2.0])]
+    experiments.DEFAULT['N'] = 10
+    out = 'results_test'
+    shutil.rmtree(out, ignore_errors=True)
+    sys.argv = ['experiments.py', '--seeds', '2', '--out', out]
+    experiments.main()
+    sys.argv = ['analyze.py', '--out', out]
+    analyze.main()
+    print('\nSmoke test passed. Inspect %s/analysis/' % out)

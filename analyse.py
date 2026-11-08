@@ -217,3 +217,7 @@ def main():
                 r['map_iou_mean'], r['path_ratio_mean'], r['n_jumps_mean'],
                 r['mean_neff_mean']))
     print('\nFigures and tables written to %s' % adir)
+
+
+if __name__ == '__main__':
+    main()
