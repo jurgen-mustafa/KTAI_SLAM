@@ -62,7 +62,6 @@ ax.set_title("SLAM Map")
 
 im = ax.imshow(mapfig['show_map'], cmap = "hot")
 fig.show()
-plot
 ts = joint['ts']
 h_angle = joint['head_angles']
 rpy_robot = joint['rpy']
@@ -75,7 +74,7 @@ mapfig = drawMap(particles[0, :], posX_map[0], posY_map[0], mapfig)
 
 pose_p, yaw_p = lid_p['pose'], rpy_p[0, 2]
 timeline = len(lid)
-for i in xrange(1, timeline-12600):
+for i in xrange(1, timeline):
 	print "{0}/{1}".format(i,timeline)
 	lid_c = lid[i]
 	pose_c, rpy_c = lid_c['pose'], lid_c['rpy']
