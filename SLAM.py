@@ -62,7 +62,7 @@ ax.set_title("SLAM Map")
 
 im = ax.imshow(mapfig['show_map'], cmap = "hot")
 fig.show()
-
+plot
 ts = joint['ts']
 h_angle = joint['head_angles']
 rpy_robot = joint['rpy']
@@ -75,7 +75,7 @@ mapfig = drawMap(particles[0, :], posX_map[0], posY_map[0], mapfig)
 
 pose_p, yaw_p = lid_p['pose'], rpy_p[0, 2]
 timeline = len(lid)
-for i in xrange(1, timeline):
+for i in xrange(1, timeline-12600):
 	print "{0}/{1}".format(i,timeline)
 	lid_c = lid[i]
 	pose_c, rpy_c = lid_c['pose'], lid_c['rpy']
@@ -149,9 +149,8 @@ for i in xrange(1, timeline):
 			while u > c:
 				i = i + 1
 				c = c + weight[i]
-
-		particle_New[m, :] = particles[i, :]
-		particles = particle_New
+			particle_New[m, :] = particles[i, :]
+			particles = particle_New
 		
 		weight = np.einsum('..., ...', 1.0 / N, np.ones((N, 1)))
 
@@ -159,6 +158,6 @@ for i in xrange(1, timeline):
 	#im.set_data(mapfig['show_map'])
 	#im.axes.figure.canvas.draw()
 
-fig1 = plt.figure(1)
+fig1 = plt.figure("particles_" + str(args.particles) + "_noise_" + str(args.noise) + "_maxrange_" + str(args.max_range))
 plt.imshow(mapfig['show_map'], cmap = "hot")
 plt.show()
