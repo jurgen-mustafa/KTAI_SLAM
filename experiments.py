@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 experiments.py -- parameter sweeps for the three research questions, built on
 the yashv28 Particle-Filter-SLAM code (THOR humanoid data).
@@ -22,8 +20,8 @@ mapConvert / drawMap / mapCorrelation unchanged. Differences from SLAM.py:
           independent sample per dimension, still scaled by factor [1, 1, 10].
   3. Resampling threshold scales with N (N_eff < 0.35 * N), so that it means
      the same for every particle count (the repo uses 35 for N = 100).
-  4. Lidar range is limited by setting returns beyond max_range to 0, which the
-     repo's own validity filter in mapConvert (0.1 < r < 30) then discards.
+  4. Lidar range is passed to mapConvert as its arg_max argument (our modified
+     SLAM_helper.py: valid returns are 0.1 < r < arg_max; the repo used 30).
   5. Cell indices are cast from int16 to int32 before drawMap, because
      OpenCV 4+ only accepts int32 contour points (no change in behaviour).
   6. Instrumentation: N_eff per step, best-particle trajectory, odometry
@@ -136,12 +134,6 @@ def new_map():
     return m
 
 
-def limit_range(scan, max_range):
-    if max_range >= 30.0:
-        return scan
-    return np.where(scan < max_range, scan, 0.0)
-
-
 # --------------------------------------------------------------------------
 # One SLAM run
 # --------------------------------------------------------------------------
@@ -185,8 +177,8 @@ def run_slam(cfg, seed, lid, joint, max_scans=None, verbose=True, label=''):
     lid_p = lid[0]
     ind_0 = np.argmin(np.absolute(ts - lid_p['t'][0][0]))
     pos_phy, posX_map, posY_map = mapConvert(
-        limit_range(lid_p['scan'], max_range), rpy_robot[:, ind_0],
-        h_angle[:, ind_0], angles, particles, N, pos_phy, posX_map, posY_map, mapfig)
+        lid_p['scan'], rpy_robot[:, ind_0], h_angle[:, ind_0], angles, particles,
+        N, pos_phy, posX_map, posY_map, mapfig, max_range)
     mapfig = drawMap(particles[0, :], posX_map[0].astype(np.int32),
                      posY_map[0].astype(np.int32), mapfig)
 
@@ -224,8 +216,8 @@ def run_slam(cfg, seed, lid, joint, max_scans=None, verbose=True, label=''):
         # ---- update: map correlation with a local x/y search ---------------
         ind_i = np.argmin(np.absolute(ts - lid_c['t'][0][0]))
         pos_phy, posX_map, posY_map = mapConvert(
-            limit_range(lid_c['scan'], max_range), rpy_robot[:, ind_i],
-            h_angle[:, ind_i], angles, particles, N, pos_phy, posX_map, posY_map, mapfig)
+            lid_c['scan'], rpy_robot[:, ind_i], h_angle[:, ind_i], angles, particles,
+            N, pos_phy, posX_map, posY_map, mapfig, max_range)
 
         corr = np.zeros((N, 1))
         for k in range(N):
@@ -395,7 +387,7 @@ def main():
     p.add_argument('--datasets', nargs='+', type=int, default=[0],
                    help='THOR training sequence(s), 0-3 (default: 0)')
     p.add_argument('--seeds', type=int, default=5)
-    p.add_argument('--out', default='results_experiment_sweeps')
+    p.add_argument('--out', default='result_experiment_sweeps')
     p.add_argument('--data-dir', default='data')
     p.add_argument('--jobs', type=int, default=1, help='parallel runs')
     p.add_argument('--max-scans', type=int, default=None,
@@ -405,8 +397,8 @@ def main():
 
     exps = ['baseline', 'particles', 'noise', 'range'] if 'all' in args.experiments \
         else args.experiments
-    if args.max_scans is not None and args.out == 'results_experiment_sweeps':
-        args.out = 'results_experiment_sweeps_quick'          # keep test runs apart from real ones
+    if args.max_scans is not None and args.out == 'result_experiment_sweeps':
+        args.out = 'Result_Experiment_sweeps_quick'   # keep test runs apart
     mkdir_p(args.out)
     csv_path = os.path.join(args.out, 'results.csv')
     done = read_done(csv_path)
