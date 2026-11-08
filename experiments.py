@@ -395,7 +395,7 @@ def main():
     p.add_argument('--datasets', nargs='+', type=int, default=[0],
                    help='THOR training sequence(s), 0-3 (default: 0)')
     p.add_argument('--seeds', type=int, default=5)
-    p.add_argument('--out', default='results')
+    p.add_argument('--out', default='results_experiment_sweeps')
     p.add_argument('--data-dir', default='data')
     p.add_argument('--jobs', type=int, default=1, help='parallel runs')
     p.add_argument('--max-scans', type=int, default=None,
