@@ -1,2 +1,5 @@
 script.sh
 .idea/
+/logs
+/new_results
+
