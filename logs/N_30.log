@@ -1,0 +1,4 @@
+  File "/home/jurgen/Documents/Master AI/Key topics in Artificial Intelligence/SLAM/Particle-Filter-SLAM/./SLAM.py", line 78
+    	print "{0}/{1}".format(i,timeline)
+    	^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+SyntaxError: Missing parentheses in call to 'print'. Did you mean print(...)?
