@@ -1,6 +1,13 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 experiments.py -- parameter sweeps for the three research questions, built on
-the yashv28 Particle-Filter-SLAM code (THOR humanoid data).
+the yashv28 Particle-Filter-SLAM code.
+
+Datasets (--datasets):
+  0 1 2 3   THOR humanoid training sequences (data/train_joint<k>.mat, train_lidar<k>.mat)
+  intel     Intel Research Lab (data/intel.clf), loaded by intel_data.py into the
+            same structures; ground-truth evaluation with evaluate_relations.py
 
   RQ1  number of particles  N          in [1, 10, 30, 100, 300]
   RQ2  motion-noise sigma               in [0, 1e-4, 1e-3, 1e-2, 5e-2]
@@ -24,12 +31,13 @@ mapConvert / drawMap / mapCorrelation unchanged. Differences from SLAM.py:
      SLAM_helper.py: valid returns are 0.1 < r < arg_max; the repo used 30).
   5. Cell indices are cast from int16 to int32 before drawMap, because
      OpenCV 4+ only accepts int32 contour points (no change in behaviour).
-  6. Instrumentation: N_eff per step, best-particle trajectory, odometry
-     trajectory, final map, run time. No live plotting.
+  6. Instrumentation: N_eff per step, best-particle trajectory (x, y, yaw),
+     odometry trajectory, scan timestamps, final map, run time. No live plotting.
 
 Usage (Python 2.7, run from the repo root, data pulled with `git lfs pull`):
   python experiments.py --dry-run                       # list the runs
   python experiments.py                                 # everything, dataset 0
+  python experiments.py --datasets intel --jobs 4       # Intel, 4 runs in parallel
   python experiments.py --experiments particles --jobs 2
   python experiments.py --max-scans 300 --seeds 1       # quick check
 Results are appended to <out>/results.csv; finished runs are skipped when you
@@ -51,6 +59,7 @@ import matplotlib.pyplot as plt
 
 import load_data as ld
 import MapUtils as maput
+import intel_data
 from SLAM_helper import mapConvert, drawMap
 
 
@@ -115,11 +124,19 @@ def seeds_for(cfg, n_seeds):
 _DATA_CACHE = {}
 
 
+DATASETS = ['0', '1', '2', '3', 'intel']
+THOR_ANGLES = np.array([np.arange(-135, 135.25, 0.25) * np.pi / 180.0])
+
+
 def load_dataset(dataset, data_dir='data'):
+    """Returns (lid, joint, angles) for a dataset name in DATASETS."""
     if dataset not in _DATA_CACHE:
-        joint = ld.get_joint(os.path.join(data_dir, 'train_joint%d' % dataset))
-        lid = ld.get_lidar(os.path.join(data_dir, 'train_lidar%d' % dataset))
-        _DATA_CACHE[dataset] = (lid, joint)
+        if dataset == 'intel':
+            _DATA_CACHE[dataset] = intel_data.load_clf(os.path.join(data_dir, 'intel.clf'))
+        else:
+            joint = ld.get_joint(os.path.join(data_dir, 'train_joint%s' % dataset))
+            lid = ld.get_lidar(os.path.join(data_dir, 'train_lidar%s' % dataset))
+            _DATA_CACHE[dataset] = (lid, joint, THOR_ANGLES)
     return _DATA_CACHE[dataset]
 
 
@@ -147,7 +164,7 @@ def low_variance_resample(particles, weight):
     return particles[idx].copy()
 
 
-def run_slam(cfg, seed, lid, joint, max_scans=None, verbose=True, label=''):
+def run_slam(cfg, seed, lid, joint, angles, max_scans=None, verbose=True, label=''):
     np.random.seed(seed)
     random.seed(seed)
     t_start = time.time()
@@ -158,7 +175,6 @@ def run_slam(cfg, seed, lid, joint, max_scans=None, verbose=True, label=''):
     window = WINDOW if int(cfg['scan_matching']) else np.array([0.0])
     n_threshold = NEFF_RATIO * N
 
-    angles = np.array([np.arange(-135, 135.25, 0.25) * np.pi / 180.0])
     mapfig = new_map()
     x_im = np.arange(mapfig['xmin'], mapfig['xmax'] + mapfig['res'], mapfig['res'])
     y_im = np.arange(mapfig['ymin'], mapfig['ymax'] + mapfig['res'], mapfig['res'])
@@ -188,7 +204,10 @@ def run_slam(cfg, seed, lid, joint, max_scans=None, verbose=True, label=''):
                       [-np.sin(yaw_0), np.cos(yaw_0)]])
 
     traj = [np.zeros(2)]
+    traj_theta = [0.0]
     odom = [np.zeros(2)]
+    odom_theta = [0.0]
+    times = [lid_p['t'][0][0]]
     neff_log = []
     resampled = []
     agreement = []
@@ -241,7 +260,10 @@ def run_slam(cfg, seed, lid, joint, max_scans=None, verbose=True, label=''):
                          posY_map[ind_best].astype(np.int32), mapfig)
 
         traj.append(particles[ind_best, :2].copy())
+        traj_theta.append(particles[ind_best, 2])
         odom.append(rot_0.dot(np.array(pose_c[0][:2], dtype=float) - pose_0))
+        odom_theta.append(yaw_c - yaw_0)
+        times.append(lid_c['t'][0][0])
         pose_p, yaw_p = pose_c, yaw_c
 
         # ---- resampling -----------------------------------------------------
@@ -263,7 +285,9 @@ def run_slam(cfg, seed, lid, joint, max_scans=None, verbose=True, label=''):
     metrics['runtime_s'] = runtime
     ternary = np.sign(mapfig['log_map']).astype(np.int8)   # 1 occ, -1 free, 0 unknown
     extras = {'traj': traj, 'odom': odom, 'neff': np.array(neff_log),
-              'resampled': np.array(resampled, dtype=np.int8), 'map': ternary}
+              'resampled': np.array(resampled, dtype=np.int8), 'map': ternary,
+              'traj_theta': np.array(traj_theta), 'odom_theta': np.array(odom_theta),
+              'times': np.array(times, dtype=float)}
     return metrics, extras
 
 
@@ -327,7 +351,7 @@ def render_map(ax, ternary, traj=None, odom=None, title='', margin=40):
 
 
 def save_run(out_dir, dataset, cfg, seed, metrics, extras):
-    run_dir = os.path.join(out_dir, 'runs', 'd%d' % dataset)
+    run_dir = os.path.join(out_dir, 'runs', 'd%s' % dataset)
     mkdir_p(run_dir)
     stem = os.path.join(run_dir, '%s_seed%d' % (config_id(cfg), seed))
     np.savez_compressed(stem + '.npz', **extras)
@@ -347,7 +371,7 @@ def read_done(csv_path):
             for line in f:
                 row = dict(zip(header, line.strip().split(',')))
                 if 'dataset' in row:
-                    done.add((int(row['dataset']), row['config'], int(row['seed'])))
+                    done.add((row['dataset'], row['config'], int(row['seed'])))
     return done
 
 
@@ -364,10 +388,10 @@ def append_row(csv_path, row):
 # --------------------------------------------------------------------------
 def run_task(task):
     dataset, cfg, seed, out_dir, max_scans, data_dir = task
-    label = 'd%d %s s%d' % (dataset, config_id(cfg), seed)
+    label = 'd%s %s s%d' % (dataset, config_id(cfg), seed)
     try:
-        lid, joint = load_dataset(dataset, data_dir)
-        metrics, extras = run_slam(cfg, seed, lid, joint, max_scans, label=label)
+        lid, joint, angles = load_dataset(dataset, data_dir)
+        metrics, extras = run_slam(cfg, seed, lid, joint, angles, max_scans, label=label)
         save_run(out_dir, dataset, cfg, seed, metrics, extras)
         row = dict(metrics)
         row.update(cfg)
@@ -384,12 +408,13 @@ def main():
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--experiments', nargs='+', default=['all'],
                    choices=['all', 'baseline', 'particles', 'noise', 'range'])
-    p.add_argument('--datasets', nargs='+', type=int, default=[0],
-                   help='THOR training sequence(s), 0-3 (default: 0)')
+    p.add_argument('--datasets', nargs='+', default=['0'], choices=DATASETS,
+                   help='THOR sequence(s) 0-3 and/or intel (default: 0)')
     p.add_argument('--seeds', type=int, default=5)
     p.add_argument('--out', default='result_experiment_sweeps')
     p.add_argument('--data-dir', default='data')
-    p.add_argument('--jobs', type=int, default=1, help='parallel runs')
+    p.add_argument('--jobs', type=int, default=1,
+                   help='number of runs in parallel (one CPU core each)')
     p.add_argument('--max-scans', type=int, default=None,
                    help='only process the first K scans (quick tests)')
     p.add_argument('--dry-run', action='store_true')
@@ -409,18 +434,21 @@ def main():
             for s in seeds_for(cfg, args.seeds):
                 if (d, config_id(cfg), s) not in done:
                     tasks.append((d, cfg, s, args.out, args.max_scans, args.data_dir))
-    tasks.sort(key=lambda t: t[1]['N'])     # cheap runs first
+    # sequential: cheap runs first, so results come in quickly. Parallel: the
+    # longest runs (most particles) first, so no worker is left with a long
+    # run at the end while the others sit idle.
+    tasks.sort(key=lambda t: t[1]['N'], reverse=args.jobs > 1)
 
     print('%d runs to do (%d already in %s)' % (len(tasks), len(done), csv_path))
     if args.dry_run:
         for t in tasks:
-            print('  dataset %d  %-28s seed %d' % (t[0], config_id(t[1]), t[2]))
+            print('  dataset %-6s %-28s seed %d' % (t[0], config_id(t[1]), t[2]))
         return
 
     if args.jobs > 1:
         import multiprocessing
-        pool = multiprocessing.Pool(args.jobs)
-        results = pool.imap_unordered(run_task, tasks)
+        pool = multiprocessing.Pool(args.jobs, maxtasksperchild=1)
+        results = pool.imap_unordered(run_task, tasks, chunksize=1)
     else:
         results = (run_task(t) for t in tasks)
 
