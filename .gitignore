@@ -1,6 +1,8 @@
 script.sh
 .idea/
+new_results/
 results_test/
 result_experiment_sweeps/
 result_experiment_sweeps_quick/
+results_experiment_sweeps_dataset2
 *.pyc
