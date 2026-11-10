@@ -1,0 +1,12 @@
+\begin{tabular}{lccccccccc}
+\toprule
+$\sigma$ & Relation error transl. (m) & Relation error rot. (deg) & Scan-to-map agreement & Map IoU across seeds & Path length / odometry & Jumps > 10 cm per run & Mean $N_{eff}$ & Runtime (s) & Occupied / known cells \\
+\midrule
+odometry only & 0.207 & 3.94 & 0.203 & -- & 1.00 & 3.0 & 1.00 & 49 & 0.006 \\
+0 & 0.464 & 3.94 & 0.344 & -- & 1.32 & 281.0 & 100.00 & 95 & 0.006 \\
+0.0001 & 0.462 & 4.68 & 0.401 & -- & 1.41 & 332.0 & 32.78 & 131 & 0.007 \\
+0.001 & 0.303 & 3.01 & 0.453 & -- & 1.35 & 284.0 & 15.00 & 126 & 0.012 \\
+0.01 & 0.162 & 6.26 & 0.438 & -- & 1.45 & 269.0 & 5.54 & 131 & 0.008 \\
+0.05 & 0.349 & 11.19 & 0.469 & -- & 1.95 & 517.0 & 2.96 & 132 & 0.001 \\
+\bottomrule
+\end{tabular}
