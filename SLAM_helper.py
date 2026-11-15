@@ -36,8 +36,8 @@ def convertFrame(part_cur, ori_robot, head_angles):
 	return T
 
 
-def mapConvert(scan, ori_robot, head_a, angles, particles, N, pos_phy, posX_map, posY_map, m):
-	indValid = np.logical_and((scan < 30), (scan > 0.1))
+def mapConvert(scan, ori_robot, head_a, angles, particles, N, pos_phy, posX_map, posY_map, m,arg_max):
+	indValid = np.logical_and((scan < arg_max), (scan > 0.1))
 	scan_valid = scan[indValid]
 	angles_valid = angles[indValid]
 

@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import MapUtils as maput
 import cv2
 import random
+import argparse
 
 
 ####Dataset####
@@ -16,9 +17,19 @@ itv = 1 # of skip in drawing maps
 
 ###############
 
+parser = argparse.ArgumentParser(description="Particle filter SLAM")
+parser.add_argument("--particles", type=int, default=100, help="number of particles")
+parser.add_argument("--noise", type=float, default=0.0001, help="motion noise")
+parser.add_argument("--max-range", type=int, default=30, help="maximum sensor range")
+parser.add_argument("--verbose", action="store_true", help="print debug output")
+args = parser.parse_args()
+
+
+
 angles = np.array([np.arange(-135, 135.25, 0.25) * np.pi / 180.0])
 
-N, N_threshold = 100, 35
+N, N_threshold = args.particles, 35
+
 particles = np.zeros((N, 3))
 weight = np.einsum('..., ...', 1.0 / N, np.ones((N, 1)))
 
@@ -51,7 +62,6 @@ ax.set_title("SLAM Map")
 
 im = ax.imshow(mapfig['show_map'], cmap = "hot")
 fig.show()
-
 ts = joint['ts']
 h_angle = joint['head_angles']
 rpy_robot = joint['rpy']
@@ -59,7 +69,7 @@ rpy_robot = joint['rpy']
 lid_p = lid[0]
 rpy_p = lid_p['rpy']
 ind_0 = np.argmin(np.absolute(ts - lid_p['t'][0][0]))
-pos_phy, posX_map, posY_map = mapConvert(lid_p['scan'], rpy_robot[:, ind_0], h_angle[:, ind_0], angles, particles, N, pos_phy, posX_map, posY_map, mapfig)
+pos_phy, posX_map, posY_map = mapConvert(lid_p['scan'], rpy_robot[:, ind_0], h_angle[:, ind_0], angles, particles, N, pos_phy, posX_map, posY_map, mapfig, args.max_range)
 mapfig = drawMap(particles[0, :], posX_map[0], posY_map[0], mapfig)
 
 pose_p, yaw_p = lid_p['pose'], rpy_p[0, 2]
@@ -87,12 +97,12 @@ for i in xrange(1, timeline):
 	ut = np.concatenate([np.concatenate([delta_x_gb_new, delta_y_gb_new], axis=0), delta_theta_gb_new], axis=0)
 	ut = np.einsum('ji', ut)
 
-	noise = np.einsum('..., ...', factor, np.random.normal(0, 1e-3, (N, 1)))
+	noise = np.einsum('..., ...', factor, np.random.normal(0, args.noise, (N, 1)))
 	particles = particles + ut + noise
 
 	scan_c = lid_c['scan']
 	ind_i = np.argmin(np.absolute(ts - lid_c['t'][0][0]))
-	pos_phy, posX_map, posY_map = mapConvert(scan_c, rpy_robot[:, ind_i], h_angle[:, ind_i], angles, particles, N, pos_phy, posX_map, posY_map, mapfig)
+	pos_phy, posX_map, posY_map = mapConvert(scan_c, rpy_robot[:, ind_i], h_angle[:, ind_i], angles, particles, N, pos_phy, posX_map, posY_map, mapfig, args.max_range)
 
 	corr = np.zeros((N, 1))
 
@@ -138,9 +148,8 @@ for i in xrange(1, timeline):
 			while u > c:
 				i = i + 1
 				c = c + weight[i]
-
-		particle_New[m, :] = particles[i, :]
-		particles = particle_New
+			particle_New[m, :] = particles[i, :]
+			particles = particle_New
 		
 		weight = np.einsum('..., ...', 1.0 / N, np.ones((N, 1)))
 
@@ -148,6 +157,6 @@ for i in xrange(1, timeline):
 	#im.set_data(mapfig['show_map'])
 	#im.axes.figure.canvas.draw()
 
-fig1 = plt.figure(1)
+fig1 = plt.figure("particles_" + str(args.particles) + "_noise_" + str(args.noise) + "_maxrange_" + str(args.max_range))
 plt.imshow(mapfig['show_map'], cmap = "hot")
 plt.show()
